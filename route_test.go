@@ -12,7 +12,7 @@ func TestSuccessfulRouteCreation(t *testing.T) {
 		"/a/b/c/",
 	}
 	for _, testCase := range cases {
-		r, err := NewRoute(testCase)
+		r, err := NewRoute("test", testCase)
 		if err != nil {
 			t.Fatal("cannot make route", testCase, err)
 		}
@@ -34,7 +34,7 @@ func TestForDoubleSlashes(t *testing.T) {
 		"/a/b//c////",
 	}
 	for _, testCase := range cases {
-		_, err := NewRoute(testCase)
+		_, err := NewRoute("test", testCase)
 		if !errors.Is(err, ErrDoubleSlash) {
 			t.Fatalf("expected double slashes error for %q, but got %q error instead", testCase, err)
 		}

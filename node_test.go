@@ -20,7 +20,7 @@ func TestTreeCreation(t *testing.T) {
 
 	tree := &Node{}
 	for _, testCase := range cases {
-		r, err := NewRoute(testCase.Route)
+		r, err := NewRoute("test", testCase.Route)
 		if err != nil {
 			t.Fatal("cannot make route", testCase.Route, err)
 		}

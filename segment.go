@@ -49,9 +49,9 @@ func NewSegment(segmentDefinition string) (Segment, error) {
 	if segmentDefinition[0] == '/' {
 		segmentDefinition = segmentDefinition[1:]
 	}
-	if segmentDefinition[0] == '{' {
+	if segmentDefinition[0] == '[' {
 		tail := len(segmentDefinition) - 1
-		if segmentDefinition[tail] != '}' {
+		if segmentDefinition[tail] != ']' {
 			return nil, fmt.Errorf("dynamic path segment definition %q is missing a closing curly brace", segmentDefinition)
 		}
 		segmentDefinition = segmentDefinition[1:tail] // cut off {}
@@ -66,7 +66,6 @@ func NewSegment(segmentDefinition string) (Segment, error) {
 type staticSegment []byte
 
 func (s staticSegment) Name() string {
-	// return ""
 	return string(s)
 }
 
@@ -125,7 +124,7 @@ func (d dynamicSegment) Match(path string) (string, string, bool) {
 }
 
 func (d dynamicSegment) String() string {
-	return "/{" + string(d) + "}"
+	return "/[" + string(d) + "]"
 }
 
 type terminalSegment string
@@ -156,7 +155,7 @@ func (t terminalSegment) Match(path string) (string, string, bool) {
 }
 
 func (t terminalSegment) String() string {
-	return "/{..." + string(t) + "}"
+	return "/[..." + string(t) + "]"
 }
 
 type trailingSlashSegment struct{}

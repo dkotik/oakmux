@@ -37,3 +37,15 @@ func (e *RoutingError) Error() string {
 func (e *RoutingError) LogValue() slog.Value {
 	return slog.StringValue("routing error: " + e.cause.Error())
 }
+
+type noRouteMatchedError struct{}
+
+func (e *noRouteMatchedError) Error() string {
+	return "Not Found"
+}
+
+func (e *noRouteMatchedError) HyperTextStatusCode() int {
+	return http.StatusNotFound
+}
+
+var ErrNoRouteMatched Error = &noRouteMatchedError{}

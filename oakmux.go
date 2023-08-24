@@ -41,7 +41,7 @@ type mux struct {
 	tree     *Node
 }
 
-func New(withOptions ...Option) Handler {
+func New(withOptions ...Option) (Handler, error) {
 	o := &options{
 		handlers: make(map[*Route]Handler, 0),
 		routes:   make(map[string]*Route),
@@ -51,7 +51,7 @@ func New(withOptions ...Option) Handler {
 	var err error
 	for _, option := range withOptions {
 		if err = option(o); err != nil {
-			panic(fmt.Errorf("cannot initialize a path multiplexer: %w", err))
+			return nil, fmt.Errorf("cannot initialize a path multiplexer: %w", err)
 		}
 	}
 
@@ -59,12 +59,12 @@ func New(withOptions ...Option) Handler {
 		handlers: o.handlers,
 		routes:   o.routes,
 		tree:     o.tree,
-	}, o.middleware...)
+	}, o.middleware...), nil
 	return &mux{
 		handlers: o.handlers,
 		routes:   o.routes,
 		tree:     o.tree,
-	}
+	}, nil
 }
 
 func (m *mux) ServeHyperText(w http.ResponseWriter, r *http.Request) error {
@@ -83,14 +83,6 @@ func (m *mux) ServeHyperText(w http.ResponseWriter, r *http.Request) error {
 	))
 }
 
-type noRouteMatchedError struct{}
-
-func (e *noRouteMatchedError) Error() string {
-	return "Not Found"
+func (m *mux) String() string {
+	return m.tree.String()
 }
-
-func (e *noRouteMatchedError) HyperTextStatusCode() int {
-	return http.StatusNotFound
-}
-
-var ErrNoRouteMatched Error = &noRouteMatchedError{}

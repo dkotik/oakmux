@@ -37,9 +37,9 @@ func TestSegmentCreation(t *testing.T) {
 			Path   string
 			Result dynamicSegment
 		}{
-			{Path: "/{var}", Result: dynamicSegment("var")},
-			{Path: "/{}", Result: dynamicSegment("")},
-			{Path: "{something}", Result: dynamicSegment("something")},
+			{Path: "/[var]", Result: dynamicSegment("var")},
+			{Path: "/[]", Result: dynamicSegment("")},
+			{Path: "[something]", Result: dynamicSegment("something")},
 		}
 
 		for _, testCase := range cases {
@@ -63,9 +63,9 @@ func TestSegmentCreation(t *testing.T) {
 			Path   string
 			Result terminalSegment
 		}{
-			{Path: "/{...var}", Result: terminalSegment("var")},
-			{Path: "/{...}", Result: terminalSegment("")},
-			{Path: "{...something}", Result: terminalSegment("something")},
+			{Path: "/[...var]", Result: terminalSegment("var")},
+			{Path: "/[...]", Result: terminalSegment("")},
+			{Path: "[...something]", Result: terminalSegment("something")},
 		}
 
 		for _, testCase := range cases {

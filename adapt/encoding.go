@@ -3,6 +3,7 @@ package adapt
 import (
   "net/http"
   "encoding/json"
+  "errors"
 )
 
 type Encoder[T any] interface {
@@ -18,12 +19,45 @@ type Codec[T any, V Validatable[T], O any] interface {
   Decoder[T, V, O]
 }
 
-type Finalizer[T any, V Validatable[T], O any] struct {
-  Decoder Decoder[T, V, O]
-  Finalize func(V) error
+type Finalizer[T any, V Validatable[T]] func(V, *http.Request) error
+
+func Finalize[T any, V Validatable[T], O any](
+  decoder Decoder[T, V, O],
+  finalizers ...Finalizer[T, V],
+) (Decoder[T, V, O], error) {
+  var zero Decoder[T, V, O]
+  if decoder == zero {
+    return zero, errors.New("cannot use a <nil> decoder")
+  }
+
+  for _, f := range finalizers {
+    if f == nil {
+      return zero, errors.New("cannot use a <nil> finalizer")
+    }
+  }
+
+  switch len(finalizers) {
+  case 0:
+    return zero, errors.New("at least one finalizer is required")
+  case 1:
+    return &singleFinalizer[T, V, O]{
+      Decoder: decoder,
+      Finalizer: finalizers[0],
+    }, nil
+  default:
+    return &multiFinalizer[T, V, O]{
+      Decoder: decoder,
+      Finalizers: finalizers,
+    }, nil
+  }
 }
 
-func (f *Finalizer[T, V, O]) Decode(
+type singleFinalizer[T any, V Validatable[T], O any] struct {
+  Decoder Decoder[T, V, O]
+  Finalizer Finalizer[T, V]
+}
+
+func (f *singleFinalizer[T, V, O]) Decode(
   w http.ResponseWriter,
   r *http.Request,
 ) (V, Encoder[O], error) {
@@ -31,8 +65,29 @@ func (f *Finalizer[T, V, O]) Decode(
   if err != nil {
     return nil, nil, err
   }
-  if err = f.Finalize(result); err != nil {
+  if err = f.Finalizer(result, r); err != nil {
     return nil, nil, err
+  }
+  return result, encoder, nil
+}
+
+type multiFinalizer[T any, V Validatable[T], O any] struct {
+  Decoder Decoder[T, V, O]
+  Finalizers []Finalizer[T, V]
+}
+
+func (f *multiFinalizer[T, V, O]) Decode(
+  w http.ResponseWriter,
+  r *http.Request,
+) (V, Encoder[O], error) {
+  result, encoder, err := f.Decoder.Decode(w, r)
+  if err != nil {
+    return nil, nil, err
+  }
+  for _, finalizer := range f.Finalizers {
+    if err = finalizer(result, r); err != nil {
+      return nil, nil, err
+    }
   }
   return result, encoder, nil
 }

@@ -3,6 +3,7 @@ package oakmux
 import (
 	"fmt"
 	"log"
+	"strings"
 )
 
 // Node is the nesting routing tree component.
@@ -99,4 +100,40 @@ func (n *Node) Grow(route *Route, remaining []Segment) (err error) {
 		return fmt.Errorf("cannot grow tree using a segment %q of unknown type %q", current.Name(), current.Type())
 	}
 	return nil
+}
+
+func (n *Node) String() string {
+	b := &strings.Builder{}
+	// b.WriteString("╟ ")
+	if n.Leaf != nil {
+		fmt.Fprintf(b, "[route:%s] ", n.Leaf.Name())
+	}
+	if n.TrailingSlashLeaf != nil {
+		fmt.Fprintf(b, "[route/%s] ", n.TrailingSlashLeaf.Name())
+	}
+	if n.TerminalLeaf != nil {
+		fmt.Fprintf(b, "[...%s]", n.TerminalLeaf.Name())
+	}
+
+	if n.Branches != nil {
+		for _, branch := range n.Branches.Keys() {
+			sub := n.Branches.Get(branch)
+			b.WriteString("\n╚ ")
+			fmt.Fprintf(b, "<%s>", branch)
+			b.WriteString(strings.Replace(sub.String(), "\n", "\n    ", -1))
+		}
+	}
+
+	if n.DynamicBranch != nil {
+		b.WriteString("\n╚ <...>")
+		b.WriteString(strings.Replace(n.DynamicBranch.String(), "\n", "\n    ", -1))
+	}
+	// fmt.Fprintf(b, "\n╟\n")
+	// fmt.Fprintf(b, "╚ ╟\n")
+	// Leaf              *Route
+	// TrailingSlashLeaf *Route
+	// TerminalLeaf      *Route
+	// Branches          Branches
+	// DynamicBranch     *Node
+	return b.String()
 }

@@ -33,14 +33,16 @@ func munchPath(p string) (
 	}
 }
 
-func NewRoute(fromPath string) (r *Route, err error) {
+func NewRoute(name, fromPath string) (r *Route, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("routing path %q is invalid: %w", fromPath, err)
 		}
 	}()
 
-	r = &Route{}
+	r = &Route{
+		name: name,
+	}
 	remainder := fromPath
 	segmentDefinition := ""
 	var currentType, lastSegmentType SegmentType

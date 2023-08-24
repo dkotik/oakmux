@@ -1,22 +1,88 @@
 package oakmux
 
 import (
+	"context"
 	"errors"
 	"fmt"
+
+	"github.com/dkotik/oakmux/adapt"
 )
 
 type options struct {
-	redirectTrailingSlash bool // TODO: implement.
-	handlers              map[*Route]Handler
-	middleware            []Middleware
-	prefix                string
-	routes                map[string]*Route
-	tree                  *Node
+	redirectTrailingSlash   bool // TODO: implement.
+	handlers                map[*Route]Handler
+	maximumJSONRequestBytes int64
+	middleware              []Middleware
+	prefix                  string
+	routes                  map[string]*Route
+	tree                    *Node
 }
 
 type Option func(*options) error
 
-func WithRoute(name, pattern string, h Handler, mws ...Middleware) Option {
+func WithMaximumJSONRequestBytes(limit int64) Option {
+	return func(o *options) error {
+		if limit <= 0 {
+			return errors.New("JSON read limit must be greater than 0 bytes")
+		}
+		if o.maximumJSONRequestBytes != 0 {
+			return fmt.Errorf("JSON read limit should be set once before any domain functions are adapted to the router; default value is already set to: %d", o.maximumJSONRequestBytes)
+		}
+		o.maximumJSONRequestBytes = limit
+		return nil
+	}
+}
+
+func WithDefaultMaximumJSONRequestOf1MB() Option {
+	return func(o *options) error {
+		if o.maximumJSONRequestBytes != 0 {
+			return nil // already set
+		}
+		if err := WithMaximumJSONRequestBytes(1 << 20)(o); err != nil {
+			return fmt.Errorf("unable to set default maximum JSON request bytes: %w", err)
+		}
+		return nil
+	}
+}
+
+func WithRouteFunc[T any, V adapt.Validatable[T], O any](
+	name, pattern string,
+	domainCall func(context.Context, V) (O, error),
+	mws ...Middleware,
+) Option {
+	return func(o *options) (err error) {
+		if err = WithDefaultMaximumJSONRequestOf1MB()(o); err != nil {
+			return err
+		}
+		adapted, err := adapt.NewFuncAdaptor(
+			domainCall,
+			adapt.NewJSONCodec[T, V, O](o.maximumJSONRequestBytes),
+		)
+		if err != nil {
+			return fmt.Errorf("cannot adapt domain call for route %q at path %q: %w", name, pattern, err)
+		}
+		return WithRouteHandler(name, pattern, adapted, mws...)(o)
+	}
+}
+
+// func WithRouteStringFunc[O any](
+// 	name, pattern string,
+// 	domainCall func(context.Context, string) (O, error),
+// 	mws ...Middleware,
+// ) Option {
+// 	return func(o *options) error {
+// 		adapted, err := adapt.NewStringFuncAdaptor(
+// 			domainCall,
+// 			adapt.NewJSONCodec[T, V, O](999),
+// 		)
+// 		if err != nil {
+// 			return fmt.Errorf("cannot adapt domain call for route %q at path %q: %w", name, pattern, err)
+// 		}
+// 		return WithRouteHandler(name, pattern, adapted, mws...)(o)
+// 	}
+// }
+
+func WithRouteHandler(name, pattern string, h Handler, mws ...Middleware) Option {
 	return func(o *options) error {
 		if name == "" {
 			return fmt.Errorf("cannot use an empty route name")
@@ -28,31 +94,16 @@ func WithRoute(name, pattern string, h Handler, mws ...Middleware) Option {
 		if h == nil {
 			return fmt.Errorf("cannot set an empty handler for path %q", pattern)
 		}
-		// p, err := Parse(pattern)
-		// if err != nil {
-		// 	return fmt.Errorf("cannot parse routing pattern %s: %w", pattern, err)
-		// }
-		// for kname, known := range o.routes {
-		// 	relationship := comparePaths(p, known)
-		// 	if relationship == equivalent || relationship == overlaps {
-		// 		return fmt.Errorf("pattern %q conflicts with route pattern %s[%s]: %s",
-		// 			p, kname, known, describeRel(p, known))
-		// 	}
-		// }
-		// o.tree.addSegments(p.segments, p)
-		// o.routes[name] = p
 
-		route, err := NewRoute(pattern)
+		route, err := NewRoute(name, pattern)
 		if err != nil {
 			return fmt.Errorf("cannot parse routing pattern %s: %w", pattern, err)
 		}
-		o.tree.Grow(route, route.segments)
-		o.routes[name] = route
-		if len(mws) > 0 {
-			panic("middleware application disabled for now")
+		if err = o.tree.Grow(route, route.segments); err != nil {
+			return fmt.Errorf("cannot use routing pattern %s for route %s: %w", pattern, name, err)
 		}
-		// o.handlers[p] = ApplyMiddleware(h, mws)
-		o.handlers[route] = h
+		o.routes[name] = route
+		o.handlers[route] = ApplyMiddleware(h, mws...)
 		return nil
 	}
 }
