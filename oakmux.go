@@ -55,11 +55,13 @@ func New(withOptions ...Option) (Handler, error) {
 		}
 	}
 
-	return ApplyMiddleware(&mux{
-		handlers: o.handlers,
-		routes:   o.routes,
-		tree:     o.tree,
-	}, o.middleware...), nil
+	if len(o.middleware) > 0 {
+		return ApplyMiddleware(&mux{
+			handlers: o.handlers,
+			routes:   o.routes,
+			tree:     o.tree,
+		}, o.middleware...), nil
+	}
 	return &mux{
 		handlers: o.handlers,
 		routes:   o.routes,
