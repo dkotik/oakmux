@@ -6,6 +6,8 @@ const optimalMimimumBranchMapSize = 8
 //
 // TODO: John Amsterdam's implementation switched to generics instead of
 // hybrid. Would it be faster than asserting the interface? Should not be.
+// At GopherConEU he said that interfaces block compiler's escape analysis.
+// Should this be re-written using generics?
 type Branches interface {
 	Get(string) *Node
 	Grow(string) (*Node, Branches)

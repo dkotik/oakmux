@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/dkotik/oakmux/adapt"
 )
@@ -54,7 +55,7 @@ func WithRouteFunc[T any, V adapt.Validatable[T], O any](
 		if err = WithDefaultMaximumJSONRequestOf1MB()(o); err != nil {
 			return err
 		}
-		adapted, err := adapt.NewFuncAdaptor(
+		adapted, err := adapt.NewUnaryFuncAdaptor(
 			domainCall,
 			adapt.NewJSONCodec[T, V, O](o.maximumJSONRequestBytes),
 		)
@@ -65,22 +66,153 @@ func WithRouteFunc[T any, V adapt.Validatable[T], O any](
 	}
 }
 
-// func WithRouteStringFunc[O any](
-// 	name, pattern string,
-// 	domainCall func(context.Context, string) (O, error),
-// 	mws ...Middleware,
-// ) Option {
-// 	return func(o *options) error {
-// 		adapted, err := adapt.NewStringFuncAdaptor(
-// 			domainCall,
-// 			adapt.NewJSONCodec[T, V, O](999),
-// 		)
-// 		if err != nil {
-// 			return fmt.Errorf("cannot adapt domain call for route %q at path %q: %w", name, pattern, err)
-// 		}
-// 		return WithRouteHandler(name, pattern, adapted, mws...)(o)
-// 	}
-// }
+func WithRouteCustomFunc[T any, V adapt.Validatable[T], O any](
+	name, pattern string,
+	domainCall func(context.Context, V) (O, error),
+	codec adapt.Codec[T, V, O],
+	mws ...Middleware,
+) Option {
+	return func(o *options) (err error) {
+		adapted, err := adapt.NewUnaryFuncAdaptor(
+			domainCall,
+			codec,
+		)
+		if err != nil {
+			return fmt.Errorf("cannot adapt domain call for route %q at path %q: %w", name, pattern, err)
+		}
+		return WithRouteHandler(name, pattern, adapted, mws...)(o)
+	}
+}
+
+func WithRouteNullaryFunc[O any](
+	name, pattern string,
+	domainCall func(context.Context) (O, error),
+	mws ...Middleware,
+) Option {
+	return func(o *options) (err error) {
+		adapted, err := adapt.NewNullaryFuncAdaptor(
+			domainCall,
+			adapt.NewJSONEncoder[O](),
+		)
+		if err != nil {
+			return fmt.Errorf("cannot adapt domain call for route %q at path %q: %w", name, pattern, err)
+		}
+		return WithRouteHandler(name, pattern, adapted, mws...)(o)
+	}
+}
+
+func WithRouteNullaryCustomFunc[O any](
+	name, pattern string,
+	domainCall func(context.Context) (O, error),
+	encoder adapt.Encoder[O],
+	mws ...Middleware,
+) Option {
+	return func(o *options) (err error) {
+		adapted, err := adapt.NewNullaryFuncAdaptor(
+			domainCall,
+			encoder,
+		)
+		if err != nil {
+			return fmt.Errorf("cannot adapt domain call for route %q at path %q: %w", name, pattern, err)
+		}
+		return WithRouteHandler(name, pattern, adapted, mws...)(o)
+	}
+}
+
+func WithRouteVoidFunc[T any, V adapt.Validatable[T]](
+	name, pattern string,
+	domainCall func(context.Context, V) error,
+	mws ...Middleware,
+) Option {
+	return func(o *options) (err error) {
+		if err = WithDefaultMaximumJSONRequestOf1MB()(o); err != nil {
+			return err
+		}
+		adapted, err := adapt.NewVoidFuncAdaptor(
+			domainCall,
+			adapt.NewJSONCodec[T, V, T](o.maximumJSONRequestBytes),
+		)
+		if err != nil {
+			return fmt.Errorf("cannot adapt domain call for route %q at path %q: %w", name, pattern, err)
+		}
+		return WithRouteHandler(name, pattern, adapted, mws...)(o)
+	}
+}
+
+func WithRouteCustomVoidFunc[T any, V adapt.Validatable[T]](
+	name, pattern string,
+	domainCall func(context.Context, V) error,
+	codec adapt.Codec[T, V, T],
+	mws ...Middleware,
+) Option {
+	return func(o *options) (err error) {
+		adapted, err := adapt.NewVoidFuncAdaptor(
+			domainCall,
+			codec,
+		)
+		if err != nil {
+			return fmt.Errorf("cannot adapt domain call for route %q at path %q: %w", name, pattern, err)
+		}
+		return WithRouteHandler(name, pattern, adapted, mws...)(o)
+	}
+}
+
+func WithRouteStringFunc[O any](
+	name, pattern string,
+	domainCall func(context.Context, string) (O, error),
+	extractor func(*http.Request) (string, error),
+	mws ...Middleware,
+) Option {
+	return func(o *options) error {
+		adapted, err := adapt.NewStringUnaryFuncAdaptor(
+			domainCall,
+			extractor,
+			adapt.NewJSONEncoder[O](),
+		)
+		if err != nil {
+			return fmt.Errorf("cannot adapt domain call for route %q at path %q: %w", name, pattern, err)
+		}
+		return WithRouteHandler(name, pattern, adapted, mws...)(o)
+	}
+}
+
+func WithRouteCustomStringFunc[O any](
+	name, pattern string,
+	domainCall func(context.Context, string) (O, error),
+	extractor func(*http.Request) (string, error),
+	encoder adapt.Encoder[O],
+	mws ...Middleware,
+) Option {
+	return func(o *options) error {
+		adapted, err := adapt.NewStringUnaryFuncAdaptor(
+			domainCall,
+			extractor,
+			encoder,
+		)
+		if err != nil {
+			return fmt.Errorf("cannot adapt domain call for route %q at path %q: %w", name, pattern, err)
+		}
+		return WithRouteHandler(name, pattern, adapted, mws...)(o)
+	}
+}
+
+func WithRouteStringVoidFunc(
+	name, pattern string,
+	domainCall func(context.Context, string) error,
+	extractor func(*http.Request) (string, error),
+	mws ...Middleware,
+) Option {
+	return func(o *options) error {
+		adapted, err := adapt.NewStringVoidFuncAdaptor(
+			domainCall,
+			extractor,
+		)
+		if err != nil {
+			return fmt.Errorf("cannot adapt domain call for route %q at path %q: %w", name, pattern, err)
+		}
+		return WithRouteHandler(name, pattern, adapted, mws...)(o)
+	}
+}
 
 func WithRouteHandler(name, pattern string, h Handler, mws ...Middleware) Option {
 	return func(o *options) error {

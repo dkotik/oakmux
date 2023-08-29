@@ -7,14 +7,14 @@ import (
 	"net/http"
 )
 
-func NewFuncAdaptor[
+func NewUnaryFuncAdaptor[
 	T any,
 	V Validatable[T],
 	O any,
 ](
 	domainCall func(context.Context, V) (O, error),
 	decoder Decoder[T, V, O],
-) (*FuncAdaptor[T, V, O], error) {
+) (*UnaryFuncAdaptor[T, V, O], error) {
 	if domainCall == nil {
 		return nil, errors.New("cannot use a <nil> domain call")
 	}
@@ -22,13 +22,13 @@ func NewFuncAdaptor[
 	if decoder == zero {
 		return nil, errors.New("cannot use a <nil> decoder")
 	}
-	return &FuncAdaptor[T, V, O]{
+	return &UnaryFuncAdaptor[T, V, O]{
 		domainCall: domainCall,
 		decoder:    decoder,
 	}, nil
 }
 
-type FuncAdaptor[
+type UnaryFuncAdaptor[
 	T any,
 	V Validatable[T],
 	O any,
@@ -37,7 +37,7 @@ type FuncAdaptor[
 	decoder    Decoder[T, V, O]
 }
 
-func (a *FuncAdaptor[T, V, O]) ServeHyperText(
+func (a *UnaryFuncAdaptor[T, V, O]) ServeHyperText(
 	w http.ResponseWriter,
 	r *http.Request,
 ) error {
@@ -59,17 +59,17 @@ func (a *FuncAdaptor[T, V, O]) ServeHyperText(
 	return nil
 }
 
-type StringFuncAdaptor[O any] struct {
+type StringUnaryFuncAdaptor[O any] struct {
 	domainCall func(context.Context, string) (O, error)
 	extractor  func(*http.Request) (string, error)
 	encoder    Encoder[O]
 }
 
-func NewStringFuncAdaptor[O any](
+func NewStringUnaryFuncAdaptor[O any](
 	domainCall func(context.Context, string) (O, error),
 	extractor func(*http.Request) (string, error),
 	encoder Encoder[O],
-) (*StringFuncAdaptor[O], error) {
+) (*StringUnaryFuncAdaptor[O], error) {
 	if domainCall == nil {
 		return nil, errors.New("cannot use a <nil> domain call")
 	}
@@ -80,14 +80,14 @@ func NewStringFuncAdaptor[O any](
 	if encoder == zero {
 		return nil, errors.New("cannot use a <nil> encoder")
 	}
-	return &StringFuncAdaptor[O]{
+	return &StringUnaryFuncAdaptor[O]{
 		domainCall: domainCall,
 		extractor:  extractor,
 		encoder:    encoder,
 	}, nil
 }
 
-func (a *StringFuncAdaptor[O]) ServeHyperText(
+func (a *StringUnaryFuncAdaptor[O]) ServeHyperText(
 	w http.ResponseWriter,
 	r *http.Request,
 ) error {

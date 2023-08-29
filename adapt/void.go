@@ -46,7 +46,11 @@ func (a *VoidFuncAdaptor[T, V]) ServeHyperText(
 	if err = request.Validate(); err != nil {
 		return NewInvalidRequestError(err)
 	}
-	return a.domainCall(r.Context(), request)
+	if err = a.domainCall(r.Context(), request); err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return nil
 }
 
 type StringVoidFuncAdaptor struct {
@@ -78,5 +82,9 @@ func (a *StringVoidFuncAdaptor) ServeHyperText(
 	if err != nil {
 		return NewInvalidRequestError(fmt.Errorf("unable to extract string: %w", err))
 	}
-	return a.domainCall(r.Context(), request)
+	if err = a.domainCall(r.Context(), request); err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return nil
 }
