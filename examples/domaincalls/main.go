@@ -4,7 +4,6 @@ Package main demonstrates routing directly to domain function calls.
 package main
 
 import (
-	"embed"
 	"fmt"
 	"log"
 	"net"
@@ -12,9 +11,6 @@ import (
 
 	"github.com/dkotik/oakmux"
 )
-
-//go:embed main.go
-var fs embed.FS
 
 func main() {
 	l, err := net.Listen("tcp", "localhost:0")
@@ -25,12 +21,10 @@ func main() {
 
 	domainLogic := &OnlineStore{}
 	handler, err := oakmux.New(
-		oakmux.WithRouteFunc( // Unary
-			"order", "api/v1/order",
-			domainLogic.Order,
-		),
+		oakmux.WithPrefix("api/v1/"),
+		oakmux.WithRouteFunc("order", "order", domainLogic.Order), // Unary
 		oakmux.WithRouteStringFunc( // UnaryString
-			"price", "api/v1/price",
+			"price", "price",
 			domainLogic.GetPrice,
 			func(r *http.Request) (string, error) {
 				// string decoder
@@ -39,11 +33,11 @@ func main() {
 			},
 		),
 		oakmux.WithRouteNullaryFunc( // Nullary
-			"inventory", "api/v1/inventory",
+			"inventory", "inventory",
 			domainLogic.GetInventory,
 		),
 		oakmux.WithRouteVoidFunc( // Unary Void
-			"record", "api/v1/record",
+			"record", "record",
 			domainLogic.Record,
 		),
 	)

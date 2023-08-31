@@ -9,39 +9,84 @@ import (
 	"github.com/dkotik/oakmux/adapt"
 )
 
+const DefaultRequestReadLimitOf1MB = 1 << 20
+
 type options struct {
-	redirectTrailingSlash   bool // TODO: implement.
-	handlers                map[*Route]Handler
-	maximumJSONRequestBytes int64
-	middleware              []Middleware
-	prefix                  string
-	routes                  map[string]*Route
-	tree                    *Node
+	redirectTrailingSlash bool // TODO: implement.
+	limitlessRequestBytes bool
+	maximumRequestBytes   int64
+	handlers              map[*Route]Handler
+	middleware            []Middleware
+	prefix                string
+	routes                map[string]*Route
+	tree                  *Node
 }
 
 type Option func(*options) error
 
-func WithMaximumJSONRequestBytes(limit int64) Option {
+func WithRequestReadLimitOf(maximumBytes int64) Option {
 	return func(o *options) error {
-		if limit <= 0 {
-			return errors.New("JSON read limit must be greater than 0 bytes")
+		if maximumBytes <= 0 {
+			return errors.New("read limit must be greater than 0 bytes")
 		}
-		if o.maximumJSONRequestBytes != 0 {
-			return fmt.Errorf("JSON read limit should be set once before any domain functions are adapted to the router; default value is already set to: %d", o.maximumJSONRequestBytes)
+		if o.maximumRequestBytes != 0 {
+			return fmt.Errorf("read limit is already set to: %d", o.maximumRequestBytes)
 		}
-		o.maximumJSONRequestBytes = limit
+		if o.limitlessRequestBytes {
+			return errors.New("cannot override WithLimitlessRequest option")
+		}
+		o.maximumRequestBytes = maximumBytes
 		return nil
 	}
 }
 
-func WithDefaultMaximumJSONRequestOf1MB() Option {
+func WithDefaultRequestReadLimitOf1MB() Option {
 	return func(o *options) error {
-		if o.maximumJSONRequestBytes != 0 {
+		if o.maximumRequestBytes != 0 || o.limitlessRequestBytes {
 			return nil // already set
 		}
-		if err := WithMaximumJSONRequestBytes(1 << 20)(o); err != nil {
+		if err := WithRequestReadLimitOf(DefaultRequestReadLimitOf1MB)(o); err != nil {
 			return fmt.Errorf("unable to set default maximum JSON request bytes: %w", err)
 		}
+		return nil
+	}
+}
+
+func WithLimitlessRequestBytes() Option {
+	return func(o *options) error {
+		if o.maximumRequestBytes != 0 {
+			return fmt.Errorf("read limit is already set to: %d", o.maximumRequestBytes)
+		}
+		if o.limitlessRequestBytes {
+			return errors.New("read limit is already removed")
+		}
+		o.limitlessRequestBytes = true
+		return nil
+	}
+}
+
+func WithRouteHandler(name, pattern string, h Handler, mws ...Middleware) Option {
+	return func(o *options) error {
+		if name == "" {
+			return fmt.Errorf("cannot use an empty route name")
+		}
+		if _, ok := o.routes[name]; ok {
+			return fmt.Errorf("route %q is already set", name)
+		}
+		pattern = o.prefix + pattern
+		if h == nil {
+			return fmt.Errorf("cannot set an empty handler for path %q", pattern)
+		}
+
+		route, err := NewRoute(name, pattern)
+		if err != nil {
+			return fmt.Errorf("cannot parse routing pattern %s: %w", pattern, err)
+		}
+		if err = o.tree.Grow(route, route.segments); err != nil {
+			return fmt.Errorf("cannot use routing pattern %s for route %s: %w", pattern, name, err)
+		}
+		o.routes[name] = route
+		o.handlers[route] = ApplyMiddleware(h, mws...)
 		return nil
 	}
 }
@@ -52,12 +97,9 @@ func WithRouteFunc[T any, V adapt.Validatable[T], O any](
 	mws ...Middleware,
 ) Option {
 	return func(o *options) (err error) {
-		if err = WithDefaultMaximumJSONRequestOf1MB()(o); err != nil {
-			return err
-		}
 		adapted, err := adapt.NewUnaryFuncAdaptor(
 			domainCall,
-			adapt.NewJSONCodec[T, V, O](o.maximumJSONRequestBytes),
+			adapt.NewJSONCodec[T, V, O](),
 		)
 		if err != nil {
 			return fmt.Errorf("cannot adapt domain call for route %q at path %q: %w", name, pattern, err)
@@ -125,12 +167,9 @@ func WithRouteVoidFunc[T any, V adapt.Validatable[T]](
 	mws ...Middleware,
 ) Option {
 	return func(o *options) (err error) {
-		if err = WithDefaultMaximumJSONRequestOf1MB()(o); err != nil {
-			return err
-		}
 		adapted, err := adapt.NewVoidFuncAdaptor(
 			domainCall,
-			adapt.NewJSONCodec[T, V, T](o.maximumJSONRequestBytes),
+			adapt.NewJSONCodec[T, V, T](),
 		)
 		if err != nil {
 			return fmt.Errorf("cannot adapt domain call for route %q at path %q: %w", name, pattern, err)
@@ -211,32 +250,6 @@ func WithRouteStringVoidFunc(
 			return fmt.Errorf("cannot adapt domain call for route %q at path %q: %w", name, pattern, err)
 		}
 		return WithRouteHandler(name, pattern, adapted, mws...)(o)
-	}
-}
-
-func WithRouteHandler(name, pattern string, h Handler, mws ...Middleware) Option {
-	return func(o *options) error {
-		if name == "" {
-			return fmt.Errorf("cannot use an empty route name")
-		}
-		if _, ok := o.routes[name]; ok {
-			return fmt.Errorf("route %q is already set", name)
-		}
-		pattern = o.prefix + pattern
-		if h == nil {
-			return fmt.Errorf("cannot set an empty handler for path %q", pattern)
-		}
-
-		route, err := NewRoute(name, pattern)
-		if err != nil {
-			return fmt.Errorf("cannot parse routing pattern %s: %w", pattern, err)
-		}
-		if err = o.tree.Grow(route, route.segments); err != nil {
-			return fmt.Errorf("cannot use routing pattern %s for route %s: %w", pattern, name, err)
-		}
-		o.routes[name] = route
-		o.handlers[route] = ApplyMiddleware(h, mws...)
-		return nil
 	}
 }
 

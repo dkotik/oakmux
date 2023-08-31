@@ -26,7 +26,7 @@ func (e *methodNotAllowedError) HyperTextStatusCode() int {
 }
 
 func NewMethodMux(withOptions ...MethodMuxOption) HandlerFunc {
-	o := &muxByMethodOptions{
+	o := &methodMuxOptions{
 		allowed: http.MethodOptions,
 	}
 	for _, option := range withOptions {
@@ -66,19 +66,19 @@ func NewMethodMux(withOptions ...MethodMuxOption) HandlerFunc {
 	}
 }
 
-type muxByMethodOptions struct {
+type methodMuxOptions struct {
 	Get     Handler
 	Post    Handler
 	Put     Handler
-	Delete  Handler
 	Patch   Handler
+	Delete  Handler
 	allowed string
 }
 
-type MethodMuxOption func(*muxByMethodOptions) error
+type MethodMuxOption func(*methodMuxOptions) error
 
 func WithPost(h Handler) MethodMuxOption {
-	return func(o *muxByMethodOptions) error {
+	return func(o *methodMuxOptions) error {
 		if h == nil {
 			return errors.New("cannot use a <nil> post request handler")
 		}
@@ -92,7 +92,7 @@ func WithPost(h Handler) MethodMuxOption {
 }
 
 func WithPut(h Handler) MethodMuxOption {
-	return func(o *muxByMethodOptions) error {
+	return func(o *methodMuxOptions) error {
 		if h == nil {
 			return errors.New("cannot use a <nil> put request handler")
 		}
@@ -106,7 +106,7 @@ func WithPut(h Handler) MethodMuxOption {
 }
 
 func WithPatch(h Handler) MethodMuxOption {
-	return func(o *muxByMethodOptions) error {
+	return func(o *methodMuxOptions) error {
 		if h == nil {
 			return errors.New("cannot use a <nil> patch request handler")
 		}
@@ -120,7 +120,7 @@ func WithPatch(h Handler) MethodMuxOption {
 }
 
 func WithDelete(h Handler) MethodMuxOption {
-	return func(o *muxByMethodOptions) error {
+	return func(o *methodMuxOptions) error {
 		if h == nil {
 			return errors.New("cannot use a <nil> delete request handler")
 		}

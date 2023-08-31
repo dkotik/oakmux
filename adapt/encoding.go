@@ -92,10 +92,10 @@ func (f *multiFinalizer[T, V, O]) Decode(
 	return result, encoder, nil
 }
 
-type jsonCodec[T any, V Validatable[T], O any] int64
+type jsonCodec[T any, V Validatable[T], O any] struct{}
 
-func NewJSONCodec[T any, V Validatable[T], O any](maxBytes int64) Codec[T, V, O] {
-	return jsonCodec[T, V, O](maxBytes)
+func NewJSONCodec[T any, V Validatable[T], O any]() Codec[T, V, O] {
+	return jsonCodec[T, V, O]{}
 }
 
 func (j jsonCodec[T, V, O]) Encode(w http.ResponseWriter, value O) error {
@@ -108,7 +108,8 @@ func (j jsonCodec[T, V, O]) Decode(
 	r *http.Request,
 ) (V, Encoder[O], error) {
 	var request V
-	err := json.NewDecoder(http.MaxBytesReader(w, r.Body, int64(j))).Decode(&request)
+	// err := json.NewDecoder(http.MaxBytesReader(w, r.Body, int64(j))).Decode(&request)
+	err := json.NewDecoder(r.Body).Decode(&request)
 	defer func() {
 		r.Body.Close()
 	}()

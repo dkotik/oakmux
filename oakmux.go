@@ -24,6 +24,7 @@ type Middleware func(Handler) Handler
 // to preserve the logical order.
 func ApplyMiddleware(h Handler, middleware ...Middleware) Handler {
 	for i := len(middleware) - 1; i >= 0; i-- {
+		// TODO: check for nils?
 		h = middleware[i](h)
 	}
 	return h
@@ -49,7 +50,19 @@ func New(withOptions ...Option) (Handler, error) {
 	}
 
 	var err error
-	for _, option := range withOptions {
+	for _, option := range append(
+		withOptions,
+		WithDefaultRequestReadLimitOf1MB(),
+		func(o *options) error {
+			if o.limitlessRequestBytes {
+				return nil
+			}
+			o.middleware = append([]Middleware{ // inject read limiting middleware
+				NewRequestReadLimiterMiddleware(o.maximumRequestBytes),
+			}, o.middleware...)
+			return nil
+		},
+	) {
 		if err = option(o); err != nil {
 			return nil, fmt.Errorf("cannot initialize a path multiplexer: %w", err)
 		}

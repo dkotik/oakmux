@@ -9,21 +9,21 @@ import (
 	"github.com/dkotik/oakmux/adapt"
 )
 
-func WithGetHandler(h Handler, mws ...Middleware) MethodMuxOption {
+func WithDeleteHandler(h Handler, mws ...Middleware) MethodMuxOption {
 	return func(o *methodMuxOptions) error {
 		if h == nil {
 			return errors.New("cannot use a <nil> get request handler")
 		}
-		if o.Get != nil {
+		if o.Delete != nil {
 			return errors.New("get request handler is already set")
 		}
-		o.Get = ApplyMiddleware(h, mws...)
-		o.allowed += "," + http.MethodGet
+		o.Delete = ApplyMiddleware(h, mws...)
+		o.allowed += "," + http.MethodDelete
 		return nil
 	}
 }
 
-func WithGetFunc[T any, V adapt.Validatable[T], O any](
+func WithDeleteFunc[T any, V adapt.Validatable[T], O any](
 	domainCall func(context.Context, V) (O, error),
 	mws ...Middleware,
 ) MethodMuxOption {
@@ -33,13 +33,13 @@ func WithGetFunc[T any, V adapt.Validatable[T], O any](
 			adapt.NewJSONCodec[T, V, O](),
 		)
 		if err != nil {
-			return fmt.Errorf("cannot adapt domain call for GET method: %w", err)
+			return fmt.Errorf("cannot adapt domain call for DELETE method: %w", err)
 		}
-		return WithGetHandler(adapted, mws...)(o)
+		return WithDeleteHandler(adapted, mws...)(o)
 	}
 }
 
-func WithGetCustomFunc[T any, V adapt.Validatable[T], O any](
+func WithDeleteCustomFunc[T any, V adapt.Validatable[T], O any](
 	domainCall func(context.Context, V) (O, error),
 	codec adapt.Codec[T, V, O],
 	mws ...Middleware,
@@ -50,13 +50,13 @@ func WithGetCustomFunc[T any, V adapt.Validatable[T], O any](
 			codec,
 		)
 		if err != nil {
-			return fmt.Errorf("cannot adapt domain call for GET method: %w", err)
+			return fmt.Errorf("cannot adapt domain call for DELETE method: %w", err)
 		}
-		return WithGetHandler(adapted, mws...)(o)
+		return WithDeleteHandler(adapted, mws...)(o)
 	}
 }
 
-func WithGetNullaryFunc[O any](
+func WithDeleteNullaryFunc[O any](
 	domainCall func(context.Context) (O, error),
 	mws ...Middleware,
 ) MethodMuxOption {
@@ -66,13 +66,13 @@ func WithGetNullaryFunc[O any](
 			adapt.NewJSONEncoder[O](),
 		)
 		if err != nil {
-			return fmt.Errorf("cannot adapt domain call for GET method: %w", err)
+			return fmt.Errorf("cannot adapt domain call for DELETE method: %w", err)
 		}
-		return WithGetHandler(adapted, mws...)(o)
+		return WithDeleteHandler(adapted, mws...)(o)
 	}
 }
 
-func WithGetNullaryCustomFunc[O any](
+func WithDeleteNullaryCustomFunc[O any](
 	domainCall func(context.Context) (O, error),
 	encoder adapt.Encoder[O],
 	mws ...Middleware,
@@ -83,13 +83,13 @@ func WithGetNullaryCustomFunc[O any](
 			encoder,
 		)
 		if err != nil {
-			return fmt.Errorf("cannot adapt domain call for GET method: %w", err)
+			return fmt.Errorf("cannot adapt domain call for DELETE method: %w", err)
 		}
-		return WithGetHandler(adapted, mws...)(o)
+		return WithDeleteHandler(adapted, mws...)(o)
 	}
 }
 
-func WithGetVoidFunc[T any, V adapt.Validatable[T]](
+func WithDeleteVoidFunc[T any, V adapt.Validatable[T]](
 	domainCall func(context.Context, V) error,
 	mws ...Middleware,
 ) MethodMuxOption {
@@ -99,13 +99,13 @@ func WithGetVoidFunc[T any, V adapt.Validatable[T]](
 			adapt.NewJSONCodec[T, V, T](),
 		)
 		if err != nil {
-			return fmt.Errorf("cannot adapt domain call for GET method: %w", err)
+			return fmt.Errorf("cannot adapt domain call for DELETE method: %w", err)
 		}
-		return WithGetHandler(adapted, mws...)(o)
+		return WithDeleteHandler(adapted, mws...)(o)
 	}
 }
 
-func WithGetCustomVoidFunc[T any, V adapt.Validatable[T]](
+func WithDeleteCustomVoidFunc[T any, V adapt.Validatable[T]](
 	domainCall func(context.Context, V) error,
 	codec adapt.Codec[T, V, T],
 	mws ...Middleware,
@@ -116,13 +116,13 @@ func WithGetCustomVoidFunc[T any, V adapt.Validatable[T]](
 			codec,
 		)
 		if err != nil {
-			return fmt.Errorf("cannot adapt domain call for GET method: %w", err)
+			return fmt.Errorf("cannot adapt domain call for DELETE method: %w", err)
 		}
-		return WithGetHandler(adapted, mws...)(o)
+		return WithDeleteHandler(adapted, mws...)(o)
 	}
 }
 
-func WithGetStringFunc[O any](
+func WithDeleteStringFunc[O any](
 	domainCall func(context.Context, string) (O, error),
 	extractor func(*http.Request) (string, error),
 	mws ...Middleware,
@@ -134,13 +134,13 @@ func WithGetStringFunc[O any](
 			adapt.NewJSONEncoder[O](),
 		)
 		if err != nil {
-			return fmt.Errorf("cannot adapt domain call for GET method: %w", err)
+			return fmt.Errorf("cannot adapt domain call for DELETE method: %w", err)
 		}
-		return WithGetHandler(adapted, mws...)(o)
+		return WithDeleteHandler(adapted, mws...)(o)
 	}
 }
 
-func WithGetCustomStringFunc[O any](
+func WithDeleteCustomStringFunc[O any](
 	domainCall func(context.Context, string) (O, error),
 	extractor func(*http.Request) (string, error),
 	encoder adapt.Encoder[O],
@@ -153,13 +153,13 @@ func WithGetCustomStringFunc[O any](
 			encoder,
 		)
 		if err != nil {
-			return fmt.Errorf("cannot adapt domain call for GET method: %w", err)
+			return fmt.Errorf("cannot adapt domain call for DELETE method: %w", err)
 		}
-		return WithGetHandler(adapted, mws...)(o)
+		return WithDeleteHandler(adapted, mws...)(o)
 	}
 }
 
-func WithGetStringVoidFunc(
+func WithDeleteStringVoidFunc(
 	domainCall func(context.Context, string) error,
 	extractor func(*http.Request) (string, error),
 	mws ...Middleware,
@@ -170,8 +170,8 @@ func WithGetStringVoidFunc(
 			extractor,
 		)
 		if err != nil {
-			return fmt.Errorf("cannot adapt domain call for GET method: %w", err)
+			return fmt.Errorf("cannot adapt domain call for DELETE method: %w", err)
 		}
-		return WithGetHandler(adapted, mws...)(o)
+		return WithDeleteHandler(adapted, mws...)(o)
 	}
 }
