@@ -12,17 +12,29 @@ import (
 const DefaultRequestReadLimitOf1MB = 1 << 20
 
 type options struct {
-	redirectTrailingSlash bool // TODO: implement.
-	limitlessRequestBytes bool
-	maximumRequestBytes   int64
-	handlers              map[*Route]Handler
-	middleware            []Middleware
-	prefix                string
-	routes                map[string]*Route
-	tree                  *Node
+	redirectToTrailingSlash   bool
+	redirectFromTrailingSlash bool
+	limitlessRequestBytes     bool
+	maximumRequestBytes       int64
+	handlers                  map[*Route]Handler
+	middleware                []Middleware
+	prefix                    string
+	routes                    map[string]*Route
+	tree                      *Node
 }
 
 type Option func(*options) error
+
+func WithOptions(withOptions ...Option) Option {
+	return func(o *options) (err error) {
+		for _, option := range withOptions {
+			if err = option(o); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+}
 
 func WithRequestReadLimitOf(maximumBytes int64) Option {
 	return func(o *options) error {
@@ -284,12 +296,35 @@ func WithPrefix(p string) Option {
 	}
 }
 
-// func WithoutTrailingSlashRedirects() MuxOption {
-// 	return func(o *muxOptions) error {
-// 		if o.redirectTrailingSlash == false {
-// 			return errors.New("trailing slash redirects are already disabled")
-// 		}
-// 		o.redirectTrailingSlash = true
-// 		return nil
-// 	}
+func WithoutTrailingSlashRedirectsToSlash() Option {
+	return func(o *options) error {
+		if o.redirectToTrailingSlash == false {
+			return errors.New("trailing slash redirects to slash are already disabled")
+		}
+		o.redirectToTrailingSlash = false
+		return nil
+	}
+}
+
+func WithoutTrailingSlashRedirectsFromSlash() Option {
+	return func(o *options) error {
+		if o.redirectFromTrailingSlash == false {
+			return errors.New("trailing slash redirects from slash are already disabled")
+		}
+		o.redirectFromTrailingSlash = false
+		return nil
+	}
+}
+
+func WithoutTrailingSlashRedirects() Option {
+	return WithOptions(
+		WithoutTrailingSlashRedirectsToSlash(),
+		WithoutTrailingSlashRedirectsFromSlash(),
+	)
+}
+
+// func WithMethodHandlers(name, options MethodMuxOption) Option {
+//   return func(o *options) error {
+//     methodMux, err := NewMethodMux()
+//   }
 // }

@@ -29,3 +29,38 @@ func TestTreeCreation(t *testing.T) {
 		}
 	}
 }
+
+func TestNodeWalk(t *testing.T) {
+	handler := newTestHandler(t)
+	router, err := New(
+		WithLimitlessRequestBytes(), // for type assertion
+		WithRouteHandler(
+			"firstRoute", "/test/[pattern]/yep/1/2/3/4",
+			handler,
+		),
+		WithRouteHandler(
+			"secondRoute", "/test/[wild]/[pattern1]/last/",
+			handler,
+		),
+		WithRouteHandler(
+			"thirdRoute", "/test/[pattern]/1/2/3/4",
+			handler,
+		),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	nodeCount := 0
+	if err = router.(*mux).tree.Walk(func(n *Node) (ok bool, err error) {
+		nodeCount++
+		return true, nil
+	}); err != nil {
+		t.Fatal("failed to walk the Node tree:", err)
+	}
+
+	const expectedToVisit = 14
+	if nodeCount != expectedToVisit {
+		t.Fatalf("walk function was unable to visit every tree node: visited %d out of %d", nodeCount, expectedToVisit)
+	}
+}

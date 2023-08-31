@@ -6,6 +6,48 @@ import (
 	"net/http"
 )
 
+type methodMux struct {
+	Get     Handler
+	Post    Handler
+	Put     Handler
+	Patch   Handler
+	Delete  Handler
+	allowed string
+}
+
+func (m *methodMux) ServeHyperText(
+	w http.ResponseWriter,
+	r *http.Request,
+) error {
+	switch r.Method {
+	case http.MethodGet, http.MethodHead:
+		if m.Get != nil {
+			return m.Get.ServeHyperText(w, r)
+		}
+	case http.MethodPost:
+		if m.Post != nil {
+			return m.Post.ServeHyperText(w, r)
+		}
+	case http.MethodPut:
+		if m.Put != nil {
+			return m.Put.ServeHyperText(w, r)
+		}
+	case http.MethodPatch:
+		if m.Patch != nil {
+			return m.Patch.ServeHyperText(w, r)
+		}
+	case http.MethodDelete:
+		if m.Delete != nil {
+			return m.Delete.ServeHyperText(w, r)
+		}
+	case http.MethodOptions:
+		w.Header().Set("Allow", m.allowed)
+		// w.WriteHeader(http.StatusOK)
+		return nil
+	}
+	return NewMethodNotAllowedError(r.Method)
+}
+
 type methodNotAllowedError struct {
 	method string
 }
@@ -25,45 +67,24 @@ func (e *methodNotAllowedError) HyperTextStatusCode() int {
 	return http.StatusMethodNotAllowed
 }
 
-func NewMethodMux(withOptions ...MethodMuxOption) HandlerFunc {
+func NewMethodMux(withOptions ...MethodMuxOption) (Handler, error) {
 	o := &methodMuxOptions{
 		allowed: http.MethodOptions,
 	}
 	for _, option := range withOptions {
 		if err := option(o); err != nil {
-			panic(fmt.Errorf("cannot initialize method switch: %w", err))
+			return nil, fmt.Errorf("cannot initialize method switch: %w", err)
 		}
 	}
 
-	return func(w http.ResponseWriter, r *http.Request) error {
-		switch r.Method {
-		case http.MethodGet, http.MethodHead:
-			if o.Get != nil {
-				return o.Get.ServeHyperText(w, r)
-			}
-		case http.MethodPost:
-			if o.Post != nil {
-				return o.Post.ServeHyperText(w, r)
-			}
-		case http.MethodPut:
-			if o.Put != nil {
-				return o.Put.ServeHyperText(w, r)
-			}
-		case http.MethodPatch:
-			if o.Patch != nil {
-				return o.Patch.ServeHyperText(w, r)
-			}
-		case http.MethodDelete:
-			if o.Delete != nil {
-				return o.Delete.ServeHyperText(w, r)
-			}
-		case http.MethodOptions:
-			w.Header().Set("Allow", o.allowed)
-			w.WriteHeader(http.StatusOK)
-			return nil
-		}
-		return NewMethodNotAllowedError(r.Method)
-	}
+	return &methodMux{
+		Get:     o.Get,
+		Post:    o.Post,
+		Put:     o.Put,
+		Patch:   o.Patch,
+		Delete:  o.Delete,
+		allowed: o.allowed,
+	}, nil
 }
 
 type methodMuxOptions struct {

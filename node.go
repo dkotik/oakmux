@@ -15,6 +15,8 @@ type Node struct {
 	DynamicBranch     *Node
 }
 
+type WalkFunc func(*Node) (ok bool, err error)
+
 func (n *Node) MatchPath(path string) (route *Route, matches []string) {
 	switch path {
 	case "":
@@ -100,6 +102,26 @@ func (n *Node) Grow(route *Route, remaining []Segment) (err error) {
 		return fmt.Errorf("cannot grow tree using a segment %q of unknown type %q", current.Name(), current.Type())
 	}
 	return nil
+}
+
+func (n *Node) Walk(walkFn WalkFunc) (err error) {
+	ok, err := walkFn(n)
+	if err != nil || !ok {
+		return
+	}
+
+	if n.Branches != nil {
+		for _, key := range n.Branches.Keys() {
+			if err = n.Branches.Get(key).Walk(walkFn); err != nil {
+				return
+			}
+		}
+	}
+
+	if n.DynamicBranch != nil {
+		return n.DynamicBranch.Walk(walkFn)
+	}
+	return
 }
 
 func (n *Node) String() string {

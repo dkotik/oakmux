@@ -9,6 +9,13 @@ import (
 	"net/http"
 )
 
+func Must[T any](this T, err error) T {
+	if err != nil {
+		panic(err)
+	}
+	return this
+}
+
 type Error interface {
 	error
 	HyperTextStatusCode() int
@@ -44,9 +51,11 @@ type mux struct {
 
 func New(withOptions ...Option) (Handler, error) {
 	o := &options{
-		handlers: make(map[*Route]Handler, 0),
-		routes:   make(map[string]*Route),
-		tree:     &Node{},
+		redirectToTrailingSlash:   true,
+		redirectFromTrailingSlash: true,
+		handlers:                  make(map[*Route]Handler, 0),
+		routes:                    make(map[string]*Route),
+		tree:                      &Node{},
 	}
 
 	var err error
@@ -68,6 +77,10 @@ func New(withOptions ...Option) (Handler, error) {
 		}
 	}
 
+	if err = o.injectTrailingSlashRedirects(); err != nil {
+		return nil, fmt.Errorf("cannot add a trailing slash redirect: %w", err)
+	}
+
 	if len(o.middleware) > 0 {
 		return ApplyMiddleware(&mux{
 			handlers: o.handlers,
@@ -84,11 +97,12 @@ func New(withOptions ...Option) (Handler, error) {
 
 func (m *mux) ServeHyperText(w http.ResponseWriter, r *http.Request) error {
 	route, matches := m.tree.MatchPath(r.URL.Path)
-	// log.Println(route, matches, m.handlers)
 	handler, ok := m.handlers[route]
 	if !ok {
 		return ErrNoRouteMatched
 	}
+	// log.Println(route, matches, m.handlers)
+	// log.Println(route.String(), r.URL.Path)
 	return handler.ServeHyperText(w, r.WithContext(
 		context.WithValue(r.Context(), muxContextKey, &RoutingContext{
 			mux:     m,

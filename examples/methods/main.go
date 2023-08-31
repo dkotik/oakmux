@@ -26,13 +26,13 @@ func main() {
 	handler, err := oakmux.New(
 		oakmux.WithPrefix("api/v1/"),
 		oakmux.WithRouteHandler("order", "order",
-			oakmux.NewMethodMux(
+			oakmux.Must(oakmux.NewMethodMux(
 				oakmux.WithGetHandler(oakmux.HandlerFunc(writeMethodUsed)),
 				oakmux.WithPostHandler(oakmux.HandlerFunc(writeMethodUsed)),
 				oakmux.WithPutHandler(oakmux.HandlerFunc(writeMethodUsed)),
 				oakmux.WithPatchHandler(oakmux.HandlerFunc(writeMethodUsed)),
 				oakmux.WithDeleteHandler(oakmux.HandlerFunc(writeMethodUsed)),
-			),
+			)),
 		),
 	)
 	if err != nil {
